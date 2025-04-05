@@ -4,3 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ash = "0.38.0+1.3.281"            # Rust bindings for Vulkan
+ash-window = "0.13.0"     # Interoperation between ash and winit
+winit = "0.30.9"          # Window creation and event handling
+raw-window-handle = "0.6.2"  # For connecting winit with ash
+nalgebra = "0.33.2"       # Linear algebra for graphics
+log = "0.4"             # Logging
+env_logger = "0.11.8"     # Logger implementation
+anyhow = "1.0.97"          # Error handling
+thiserror = "2.0.12"       # Error definitions
+bytemuck = { version = "1.22.0", features = ["derive"] } # Casting between byte arrays and other types
+memoffset = "0.9.1"       # Calculating offsets in structs
