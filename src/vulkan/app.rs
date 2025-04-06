@@ -1,7 +1,7 @@
 use anyhow::Result;
 use ash::{vk, Entry, Instance};
 use winit::window::Window;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 
 use crate::vulkan::{
     command,
@@ -123,7 +123,7 @@ impl VulkanApp {
         let mut image_available_semaphores = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT);
         let mut render_finished_semaphores = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT);
         let mut in_flight_fences = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT);
-        let mut images_in_flight = vec![vk::Fence::null(); swapchain_images.len()];
+        let images_in_flight = vec![vk::Fence::null(); swapchain_images.len()];
 
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
         let fence_create_info = vk::FenceCreateInfo {
@@ -199,69 +199,152 @@ impl VulkanApp {
         Ok(())
     }
 
-    pub fn draw_frame(&mut self, image_index: usize) -> Result<()> {
-        let frame_counter = self.frame_counter.fetch_add(1, Ordering::Relaxed);
-        let current_frame = (frame_counter as usize) % MAX_FRAMES_IN_FLIGHT;
+    pub fn recreate_swapchain(&mut self, window: &Window) -> Result<()> {
+        // Wait for device to be idle before recreating swapchain
+        unsafe {
+            self.device.device_wait_idle()?;
+        }
+
+        // Clean up old resources
+        // Destroy old framebuffers
+        for framebuffer in &self.framebuffers {
+            unsafe {
+                self.device.destroy_framebuffer(*framebuffer, None);
+            }
+        }
+
+        // Destroy old image views
+        for image_view in &self.swapchain_image_views {
+            unsafe {
+                self.device.destroy_image_view(*image_view, None);
+            }
+        }
+
+        // Get window size for new swapchain
+        let window_size = window.inner_size();
+
+        // Create new swapchain
+        let (swapchain_loader, swapchain, swapchain_images, swapchain_format, swapchain_extent) =
+            swapchain::create_swapchain(
+                &self.instance,
+                self.physical_device,
+                &self.device,
+                self.surface,
+                self.queue_family_index,
+                window,
+            )?;
+
+        // Create new image views
+        let swapchain_image_views =
+            swapchain::create_image_views(&self.device, &swapchain_images, swapchain_format)?;
+
+        // Create new framebuffers
+        let framebuffers = framebuffer::create_framebuffers(
+            &self.device,
+            self.render_pass,
+            &swapchain_image_views,
+            swapchain_extent,
+        )?;
+
+        // Update struct fields
+        self.swapchain_loader = swapchain_loader;
+        self.swapchain = swapchain;
+        self.swapchain_images = swapchain_images;
+        self.swapchain_format = swapchain_format;
+        self.swapchain_extent = swapchain_extent;
+        self.swapchain_image_views = swapchain_image_views;
+        self.framebuffers = framebuffers;
+
+        Ok(())
+    }
+
+    pub fn draw_frame(&mut self, ui_renderer: &crate::ui::UiRenderer, window: &Window) -> anyhow::Result<()> {
+        let wait_fences = [self.in_flight_fences[self.current_frame]];
+        unsafe {
+            self.device.wait_for_fences(&wait_fences, true, std::u64::MAX)?;
+        }
+
+        let result = unsafe {
+            self.swapchain_loader.acquire_next_image(
+                self.swapchain,
+                std::u64::MAX,
+                self.image_available_semaphores[self.current_frame],
+                vk::Fence::null(),
+            )
+        };
+
+        let image_index = match result {
+            Ok((image_index, _)) => image_index,
+            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
+                self.recreate_swapchain(window)?;
+                return Ok(());
+            }
+            Err(error) => return Err(anyhow::anyhow!("Failed to acquire next image: {}", error)),
+        };
+
+        // Important: Reset fence only AFTER acquiring the image
+        unsafe {
+            self.device.reset_fences(&wait_fences)?;
+        }
+
+        self.update_command_buffer(image_index as usize, ui_renderer)?;
+
+        let wait_semaphores = [self.image_available_semaphores[self.current_frame]];
+        let signal_semaphores = [self.render_finished_semaphores[self.current_frame]];
+        let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let command_buffers = [self.command_buffers[image_index as usize]];
+
+        let submit_info = vk::SubmitInfo {
+            s_type: vk::StructureType::SUBMIT_INFO,
+            p_next: std::ptr::null(),
+            wait_semaphore_count: wait_semaphores.len() as u32,
+            p_wait_semaphores: wait_semaphores.as_ptr(),
+            p_wait_dst_stage_mask: wait_stages.as_ptr(),
+            command_buffer_count: command_buffers.len() as u32,
+            p_command_buffers: command_buffers.as_ptr(),
+            signal_semaphore_count: signal_semaphores.len() as u32,
+            p_signal_semaphores: signal_semaphores.as_ptr(),
+            _marker: std::marker::PhantomData,
+        };
 
         unsafe {
-            // Wait for the previous frame to finish
-            self.device.wait_for_fences(&[self.in_flight_fences[current_frame]], true, u64::MAX)?;
-
-            // Check if a previous frame is using this image (i.e. there is its fence to wait on)
-            if self.images_in_flight[image_index] != vk::Fence::null() {
-                self.device.wait_for_fences(&[self.images_in_flight[image_index]], true, u64::MAX)?;
-            }
-
-            // Mark the image as now being in use by this frame
-            self.images_in_flight[image_index] = self.in_flight_fences[current_frame];
-
-            // Submit the command buffer
-            let wait_semaphores = [self.image_available_semaphores[current_frame]];
-            let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-            let command_buffers = [self.command_buffers[image_index]];
-            let signal_semaphores = [self.render_finished_semaphores[current_frame]];
-
-            let submit_info = vk::SubmitInfo {
-                wait_semaphore_count: wait_semaphores.len() as u32,
-                p_wait_semaphores: wait_semaphores.as_ptr(),
-                p_wait_dst_stage_mask: wait_stages.as_ptr(),
-                command_buffer_count: command_buffers.len() as u32,
-                p_command_buffers: command_buffers.as_ptr(),
-                signal_semaphore_count: signal_semaphores.len() as u32,
-                p_signal_semaphores: signal_semaphores.as_ptr(),
-                ..Default::default()
-            };
-
-            self.device.reset_fences(&[self.in_flight_fences[current_frame]])?;
-
             self.device.queue_submit(
                 self.graphics_queue,
                 &[submit_info],
-                self.in_flight_fences[current_frame],
+                self.in_flight_fences[self.current_frame],
             )?;
-
-            // Present the image to the screen
-            let swapchains = [self.swapchain];
-            let image_indices = [image_index as u32];
-
-            let present_info = vk::PresentInfoKHR {
-                wait_semaphore_count: signal_semaphores.len() as u32,
-                p_wait_semaphores: signal_semaphores.as_ptr(),
-                swapchain_count: swapchains.len() as u32,
-                p_swapchains: swapchains.as_ptr(),
-                p_image_indices: image_indices.as_ptr(),
-                ..Default::default()
-            };
-
-            match self.swapchain_loader.queue_present(self.graphics_queue, &present_info) {
-                Ok(_) => {}
-                Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                    // Window resized, we should recreate the swapchain
-                    return Ok(());
-                }
-                Err(error) => return Err(error.into()),
-            }
         }
+
+        let swapchains = [self.swapchain];
+        let image_indices = [image_index];
+
+        let present_info = vk::PresentInfoKHR {
+            s_type: vk::StructureType::PRESENT_INFO_KHR,
+            p_next: std::ptr::null(),
+            wait_semaphore_count: signal_semaphores.len() as u32,
+            p_wait_semaphores: signal_semaphores.as_ptr(),
+            swapchain_count: swapchains.len() as u32,
+            p_swapchains: swapchains.as_ptr(),
+            p_image_indices: image_indices.as_ptr(),
+            p_results: std::ptr::null_mut(),
+            _marker: std::marker::PhantomData,
+        };
+
+        let result = unsafe {
+            self.swapchain_loader.queue_present(self.graphics_queue, &present_info)
+        };
+
+        match result {
+            Ok(_) => {}
+            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
+                self.recreate_swapchain(window)?;
+                return Ok(());
+            }
+            Err(error) => return Err(anyhow::anyhow!("Failed to present queue: {}", error)),
+        }
+
+        // Update current frame index for the next frame
+        self.current_frame = (self.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
         Ok(())
     }
