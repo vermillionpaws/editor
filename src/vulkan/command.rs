@@ -1,15 +1,18 @@
 use ash::{vk, Device};
 use anyhow::Result;
+use crate::ui::UiRenderer;
+use std::sync::Arc;
 
 pub fn create_command_pool_and_buffers(
     device: &Device,
     queue_family_index: u32,
-    buffer_count: usize,
+    image_count: usize,
 ) -> Result<(vk::CommandPool, Vec<vk::CommandBuffer>)> {
     // Create command pool
     let pool_info = vk::CommandPoolCreateInfo {
-        queue_family_index,
+        s_type: vk::StructureType::COMMAND_POOL_CREATE_INFO,
         flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+        queue_family_index,
         ..Default::default()
     };
 
@@ -19,9 +22,10 @@ pub fn create_command_pool_and_buffers(
 
     // Allocate command buffers
     let alloc_info = vk::CommandBufferAllocateInfo {
+        s_type: vk::StructureType::COMMAND_BUFFER_ALLOCATE_INFO,
         command_pool,
         level: vk::CommandBufferLevel::PRIMARY,
-        command_buffer_count: buffer_count as u32,
+        command_buffer_count: image_count as u32,
         ..Default::default()
     };
 
@@ -38,6 +42,8 @@ pub fn record_command_buffer(
     framebuffer: vk::Framebuffer,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,
+    ui_renderer: Option<&UiRenderer>,
+    framebuffer_idx: usize,
 ) -> Result<()> {
     // Begin command buffer
     let begin_info = vk::CommandBufferBeginInfo {
@@ -74,11 +80,16 @@ pub fn record_command_buffer(
             &render_pass_begin_info,
             vk::SubpassContents::INLINE,
         );
+    }
 
-        // End render pass
+    // Record UI rendering commands if UI renderer is provided
+    if let Some(renderer) = ui_renderer {
+        renderer.record_ui_commands(command_buffer, framebuffer_idx)?;
+    }
+
+    // End render pass
+    unsafe {
         device.cmd_end_render_pass(command_buffer);
-
-        // End command buffer
         device.end_command_buffer(command_buffer)?;
     }
 

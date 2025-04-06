@@ -15,3 +15,8 @@ anyhow = "1.0.97"          # Error handling
 thiserror = "2.0.12"       # Error definitions
 bytemuck = { version = "1.22.0", features = ["derive"] } # Casting between byte arrays and other types
 memoffset = "0.9.1"       # Calculating offsets in structs
+image = "0.25.6"         # Image processing for font atlas
+rusttype = "0.9.3"       # Font handling and rendering
+ab_glyph = "0.2.29"      # Alternative font rendering
+glam = "0.30.1"          # Math library for graphics
+shaderc = "0.9.1"        # Shader compilation

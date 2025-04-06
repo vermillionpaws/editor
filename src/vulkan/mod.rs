@@ -8,6 +8,7 @@ pub mod instance;
 pub mod render_pass;
 pub mod surface;
 pub mod swapchain;
+pub mod shader;
 
 pub use app::VulkanApp;
 pub use error::VulkanError;
