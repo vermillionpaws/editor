@@ -9,21 +9,24 @@ use ash::{vk, Device};
 use log::{error, trace};
 use std::ffi::CString;
 use std::collections::HashMap;
-use std::sync::Arc;
+
+use std::sync::Mutex;
+use lazy_static::lazy_static;
 
 // Cache to avoid recompiling the same shaders
-static mut SHADER_MODULE_CACHE: Option<HashMap<String, vk::ShaderModule>> = None;
+lazy_static! {
+    static ref SHADER_MODULE_CACHE: Mutex<HashMap<String, vk::ShaderModule>> = Mutex::new(HashMap::new());
+}
 
 pub fn init_shader_cache() {
-    unsafe {
-        SHADER_MODULE_CACHE = Some(HashMap::new());
-    }
+    // No initialization needed with lazy_static
+    trace!("Shader cache initialized");
 }
 
 pub fn cleanup_shader_modules(device: &Device) {
-    unsafe {
-        if let Some(cache) = SHADER_MODULE_CACHE.take() {
-            for (path, module) in cache {
+    if let Ok(mut cache) = SHADER_MODULE_CACHE.lock() {
+        for (path, module) in cache.drain() {
+            unsafe {
                 device.destroy_shader_module(module, None);
                 trace!("Destroyed shader module for {}", path);
             }
@@ -38,12 +41,10 @@ pub fn create_shader_module(
     shader_type: ShaderType
 ) -> Result<vk::ShaderModule> {
     // Check if shader module is already in cache
-    unsafe {
-        if let Some(cache) = &SHADER_MODULE_CACHE {
-            if let Some(module) = cache.get(shader_path) {
-                trace!("Using cached shader module for {}", shader_path);
-                return Ok(*module);
-            }
+    if let Ok(cache) = SHADER_MODULE_CACHE.lock() {
+        if let Some(module) = cache.get(shader_path) {
+            trace!("Using cached shader module for {}", shader_path);
+            return Ok(*module);
         }
     }
 
@@ -68,10 +69,8 @@ pub fn create_shader_module(
     };
 
     // Cache the shader module
-    unsafe {
-        if let Some(cache) = &mut SHADER_MODULE_CACHE {
-            cache.insert(shader_path.to_string(), shader_module);
-        }
+    if let Ok(mut cache) = SHADER_MODULE_CACHE.lock() {
+        cache.insert(shader_path.to_string(), shader_module);
     }
 
     trace!("Created shader module for {}", shader_path);
@@ -161,6 +160,7 @@ pub fn create_descriptor_set_layout(
             descriptor_count: 1,
             stage_flags: vk::ShaderStageFlags::FRAGMENT,
             p_immutable_samplers: std::ptr::null(),
+            _marker: std::marker::PhantomData,
         },
     ];
 
@@ -224,7 +224,7 @@ pub fn allocate_descriptor_sets(
         s_type: vk::StructureType::DESCRIPTOR_SET_ALLOCATE_INFO,
         p_next: std::ptr::null(),
         descriptor_pool: pool,
-        descriptor_count: count,
+        descriptor_set_count: count,
         p_set_layouts: layouts.as_ptr(),
         ..Default::default()
     };
@@ -279,21 +279,25 @@ pub fn compile_shaders() -> Result<()> {
     }
 
     // Compile vertex shader
-    compile_shader("shaders/ui.vert", "shaders/ui.vert.spv", "vert")?;
+    compile_shader_file("shaders/ui.vert", "shaders/ui.vert.spv", ShaderType::Vertex)?;
 
     // Compile fragment shader
-    compile_shader("shaders/ui.frag", "shaders/ui.frag.spv", "frag")?;
+    compile_shader_file("shaders/ui.frag", "shaders/ui.frag.spv", ShaderType::Fragment)?;
 
     info!("Shaders compiled successfully");
     Ok(())
 }
 
-fn compile_shader(source_path: &str, output_path: &str, shader_type: &str) -> Result<()> {
+fn compile_shader_file(source_path: &str, output_path: &str, shader_type: ShaderType) -> Result<()> {
     // Check if the source file exists
     let source_path = Path::new(source_path);
     if !source_path.exists() {
         // Create basic shader if it doesn't exist
-        create_default_shader(source_path, shader_type)?;
+        create_default_shader(source_path, match shader_type {
+            ShaderType::Vertex => "vert",
+            ShaderType::Fragment => "frag",
+            ShaderType::Compute => "comp",
+        })?;
     }
 
     // Check if output already exists and is newer than source

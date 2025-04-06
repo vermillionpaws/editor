@@ -7,7 +7,7 @@ use std::sync::Arc;
 use vulkan::VulkanApp;
 use winit::{
     application::ApplicationHandler,
-    event::{ElementState, KeyEvent, WindowEvent},
+    event::{ElementState, KeyEvent, WindowEvent, Modifiers},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey, ModifiersState},
     window::{WindowId, WindowAttributes},
@@ -67,8 +67,8 @@ impl AppState {
     }
 
     fn initialize_renderer(&mut self) -> Result<()> {
-        // Use a reference instead of cloning
-        let app_arc = Arc::new(&self.vulkan_app);
+        // Clone the VulkanApp and wrap it in an Arc
+        let app_arc = Arc::new(self.vulkan_app.clone());
 
         // Initialize with default font
         let font = self.ui_state.font.clone();
@@ -497,7 +497,8 @@ impl AppState {
     }
 
     fn reload_font_atlas(&mut self) -> Result<()> {
-        let app_arc = Arc::new(&self.vulkan_app);
+        // Clone the VulkanApp and wrap it in an Arc
+        let app_arc = Arc::new(self.vulkan_app.clone());
 
         // Clean up old resources first
         self.ui_renderer.cleanup();
@@ -539,7 +540,7 @@ impl ApplicationHandler for AppState {
                 self.handle_key_event(&key_event);
             },
             WindowEvent::ModifiersChanged(modifiers) => {
-                self.modifiers = modifiers;
+                self.modifiers = modifiers.state();
             },
             WindowEvent::Resized(_) => {
                 // Window resize handling would go here

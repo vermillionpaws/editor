@@ -1,7 +1,7 @@
 use ash::{vk, Device};
 use anyhow::Result;
+
 use crate::ui::UiRenderer;
-use std::sync::Arc;
 
 pub fn create_command_pool_and_buffers(
     device: &Device,

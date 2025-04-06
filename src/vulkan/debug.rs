@@ -1,4 +1,5 @@
 use ash::{vk, Entry, Instance};
+use ash::ext;
 use log;
 use std::{
     ffi::{c_void, CStr, CString},
@@ -38,10 +39,13 @@ pub fn setup_validation_layers(entry: &Entry) -> Result<(Vec<CString>, Vec<*cons
 pub unsafe fn create_debug_messenger(
     entry: &Entry,
     instance: &Instance,
-) -> Result<(vk::DebugUtilsMessengerEXT, ash::ext::DebugUtils)> {
-    let debug_utils_loader = ash::ext::DebugUtils::new(entry, instance);
+) -> Result<(vk::DebugUtilsMessengerEXT, ext::DebugUtils)> {
+    let debug_utils_loader = ext::DebugUtils::new(entry, instance);
 
     let messenger_ci = vk::DebugUtilsMessengerCreateInfoEXT {
+        s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+        p_next: std::ptr::null(),
+        flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
         message_severity:
             vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
             vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
@@ -52,7 +56,8 @@ pub unsafe fn create_debug_messenger(
             vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE |
             vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
         pfn_user_callback: Some(vulkan_debug_callback),
-        ..Default::default()
+        p_user_data: std::ptr::null_mut(),
+        _marker: std::marker::PhantomData,
     };
 
     let debug_messenger = debug_utils_loader.create_debug_utils_messenger(&messenger_ci, None)?;

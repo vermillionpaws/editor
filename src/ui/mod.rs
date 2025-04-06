@@ -5,10 +5,7 @@ pub mod keybinds;
 pub mod state;
 pub mod theme;
 
-// Re-export common types for easier imports
-pub use components::*;
+pub use components::{Component, TextEditor, StatusBar, LineNumbers, CommandLine, UiRenderer};
 pub use font::Font;
-pub use font_atlas::FontAtlas;
-pub use keybinds::Keybinds;
 pub use state::UiState;
 pub use theme::Theme;

@@ -39,9 +39,10 @@ pub struct VulkanApp {
     pub(crate) current_frame: usize,
     pub(crate) frame_counter: AtomicU64,
     #[cfg(debug_assertions)]
-    pub(crate) debug_utils: ash::extensions::ext::DebugUtils,
+    pub debug_messenger: vk::DebugUtilsMessengerEXT,
     #[cfg(debug_assertions)]
-    pub(crate) debug_messenger: vk::DebugUtilsMessengerEXT,
+    pub(crate) debug_utils: ash::ext::DebugUtils,
+    pub(crate) _marker: std::marker::PhantomData<()>,
 }
 
 const MAX_FRAMES_IN_FLIGHT: usize = 2;
@@ -113,6 +114,8 @@ impl VulkanApp {
                 framebuffers[i],
                 render_pass,
                 swapchain_extent,
+                None,  // No UI renderer initially
+                i,     // framebuffer index
             )?;
         }
 
@@ -169,6 +172,7 @@ impl VulkanApp {
             debug_utils,
             #[cfg(debug_assertions)]
             debug_messenger,
+            _marker: std::marker::PhantomData::default(),
         })
     }
 
