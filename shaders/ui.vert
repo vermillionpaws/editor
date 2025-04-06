@@ -10,11 +10,13 @@ layout(location = 1) out vec2 fragTexCoord;
 
 layout(push_constant) uniform PushConstants {
     mat4 transform;
-    float opacity;
+    vec4 color;
+    uint useTexture;
+    uint _padding[3]; // Padding to match Rust struct
 } pushConstants;
 
 void main() {
     gl_Position = pushConstants.transform * vec4(inPosition, 0.0, 1.0);
-    fragColor = inColor * pushConstants.opacity;
+    fragColor = inColor * pushConstants.color;
     fragTexCoord = inTexCoord;
 }

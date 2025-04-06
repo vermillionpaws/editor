@@ -30,7 +30,7 @@ pub fn create_instance(entry: &Entry, window: &Window) -> Result<Instance> {
     // Add debug utils extension in debug mode
     #[cfg(debug_assertions)]
     {
-        let debug_utils_name = ext::DebugUtils::name().as_ptr();
+        let debug_utils_name = ext::debug_utils::NAME.as_ptr();
         extension_names.push(debug_utils_name);
     }
 

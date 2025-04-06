@@ -2,6 +2,7 @@ mod ui;
 mod vulkan;
 
 use anyhow::Result;
+use ash::vk;
 use log::{error, info, trace};
 use std::sync::Arc;
 use vulkan::VulkanApp;
@@ -553,8 +554,38 @@ impl ApplicationHandler for AppState {
         // Render UI elements
         self.render_ui();
 
-        // Render a frame with Vulkan
-        if let Err(e) = self.vulkan_app.draw_frame() {
+        // Advance the frame counter and get the right semaphore
+        let frame_index = self.ui_renderer.advance_frame();
+        let semaphore = self.ui_renderer.get_current_semaphore().expect("No semaphore available");
+
+        // Get the next swapchain image index using the current frame's semaphore
+        let next_image_index = match unsafe {
+            self.vulkan_app.swapchain_loader.acquire_next_image(
+                self.vulkan_app.swapchain,
+                u64::MAX,
+                // Use the semaphore from UI renderer's current frame tracking
+                semaphore,
+                vk::Fence::null(),
+            )
+        } {
+            Ok((index, _)) => index as usize,
+            Err(_) => {
+                // Handle errors (just log for now)
+                error!("Failed to acquire next swapchain image");
+                event_loop.exit();
+                return;
+            }
+        };
+
+        // Update the command buffer with the latest UI elements
+        if let Err(e) = self.vulkan_app.update_command_buffer(next_image_index, &self.ui_renderer) {
+            error!("Failed to update command buffer: {}", e);
+            event_loop.exit();
+            return;
+        }
+
+        // Render a frame with Vulkan using our acquired image index
+        if let Err(e) = self.vulkan_app.draw_frame(next_image_index) {
             error!("Failed to draw frame: {}", e);
             event_loop.exit();
         }

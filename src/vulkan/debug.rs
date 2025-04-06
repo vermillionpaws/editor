@@ -39,8 +39,8 @@ pub fn setup_validation_layers(entry: &Entry) -> Result<(Vec<CString>, Vec<*cons
 pub unsafe fn create_debug_messenger(
     entry: &Entry,
     instance: &Instance,
-) -> Result<(vk::DebugUtilsMessengerEXT, ext::DebugUtils)> {
-    let debug_utils_loader = ext::DebugUtils::new(entry, instance);
+) -> Result<(vk::DebugUtilsMessengerEXT, ash::ext::debug_utils::Instance)> {
+    let debug_utils_loader = ext::debug_utils::Instance::new(entry, instance);
 
     let messenger_ci = vk::DebugUtilsMessengerCreateInfoEXT {
         s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,

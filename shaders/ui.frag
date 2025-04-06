@@ -10,15 +10,16 @@ layout(binding = 0) uniform sampler2D texSampler;
 
 layout(push_constant) uniform PushConstants {
     mat4 transform;
-    float opacity;
-    int useTexture;
+    vec4 color;
+    uint useTexture;
+    uint _padding[3];
 } pushConstants;
 
 void main() {
     if (pushConstants.useTexture == 1) {
         vec4 texColor = texture(texSampler, fragTexCoord);
-        outColor = fragColor * texColor;
+        outColor = fragColor * pushConstants.color * texColor;
     } else {
-        outColor = fragColor;
+        outColor = fragColor * pushConstants.color;
     }
 }

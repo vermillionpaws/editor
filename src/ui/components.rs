@@ -228,6 +228,9 @@ pub struct UiRenderer {
     index_buffer: Option<vk::Buffer>,
     index_buffer_memory: Option<vk::DeviceMemory>,
 
+    // Keep track of current frame for synchronization
+    current_frame: usize,
+
     // UI elements to render
     pending_elements: Vec<UiElement>,
 
@@ -283,6 +286,7 @@ impl UiRenderer {
             vertex_buffer_memory: None,
             index_buffer: None,
             index_buffer_memory: None,
+            current_frame: 0,
             pending_elements: Vec::new(),
             quad_vertices,
             quad_indices,
@@ -924,8 +928,9 @@ impl UiRenderer {
         let width = app.swapchain_extent.width as f32;
         let height = app.swapchain_extent.height as f32;
 
-        // Create orthographic projection
-        let projection = Mat4::orthographic_lh(0.0, width, height, 0.0, -1.0, 1.0);
+        // Create orthographic projection - using RH coordinate system to match Vulkan
+        // This maps (0,0) to top-left and (width,height) to bottom-right
+        let projection = Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0);
 
         // Create translation matrix
         let translation = Mat4::from_translation(Vec3::new(position[0], position[1], 0.0));
@@ -1004,8 +1009,8 @@ impl UiRenderer {
             let width = app.swapchain_extent.width as f32;
             let height = app.swapchain_extent.height as f32;
 
-            // Create orthographic projection
-            let projection = Mat4::orthographic_lh(0.0, width, height, 0.0, -1.0, 1.0);
+            // Create orthographic projection - using RH coordinate system to match Vulkan
+            let projection = Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0);
 
             let mut cursor_x = position[0];
             let cursor_y = position[1];
@@ -1084,8 +1089,8 @@ impl UiRenderer {
         let width = app.swapchain_extent.width as f32;
         let height = app.swapchain_extent.height as f32;
 
-        // Create orthographic projection
-        let projection = Mat4::orthographic_lh(0.0, width, height, 0.0, -1.0, 1.0);
+        // Create orthographic projection - using RH coordinate system to match Vulkan
+        let projection = Mat4::orthographic_rh(0.0, width, height, 0.0, -1.0, 1.0);
 
         // Create translation matrix
         let translation = Mat4::from_translation(Vec3::new(position[0], position[1], 0.0));
@@ -1410,6 +1415,25 @@ impl UiRenderer {
                 self.font_atlas = None;
                 self.descriptor_sets.clear();
             }
+        }
+    }
+
+    // Advance to next frame and get the proper image available semaphore
+    pub fn advance_frame(&mut self) -> usize {
+        // Calculate next frame index and update
+        if let Some(app) = &self.app {
+            let next_frame = (self.current_frame + 1) % app.image_available_semaphores.len();
+            self.current_frame = next_frame;
+        }
+        self.current_frame
+    }
+
+    // Get the current image available semaphore
+    pub fn get_current_semaphore(&self) -> Option<vk::Semaphore> {
+        if let Some(app) = &self.app {
+            Some(app.image_available_semaphores[self.current_frame])
+        } else {
+            None
         }
     }
 }

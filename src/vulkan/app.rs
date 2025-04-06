@@ -41,7 +41,7 @@ pub struct VulkanApp {
     #[cfg(debug_assertions)]
     pub debug_messenger: vk::DebugUtilsMessengerEXT,
     #[cfg(debug_assertions)]
-    pub(crate) debug_utils: ash::ext::DebugUtils,
+    pub(crate) debug_utils: ash::ext::debug_utils::Instance,
     pub(crate) _marker: std::marker::PhantomData<()>,
 }
 
@@ -176,30 +176,36 @@ impl VulkanApp {
         })
     }
 
-    pub fn draw_frame(&mut self) -> Result<()> {
+    pub fn update_command_buffer(&mut self, image_index: usize, ui_renderer: &crate::ui::UiRenderer) -> Result<()> {
+        // Reset the command buffer to begin recording
+        unsafe {
+            self.device.reset_command_buffer(
+                self.command_buffers[image_index],
+                vk::CommandBufferResetFlags::empty(),
+            )?;
+        }
+
+        // Re-record the command buffer with the latest UI elements
+        command::record_command_buffer(
+            &self.device,
+            self.command_buffers[image_index],
+            self.framebuffers[image_index],
+            self.render_pass,
+            self.swapchain_extent,
+            Some(ui_renderer),
+            image_index,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn draw_frame(&mut self, image_index: usize) -> Result<()> {
         let frame_counter = self.frame_counter.fetch_add(1, Ordering::Relaxed);
         let current_frame = (frame_counter as usize) % MAX_FRAMES_IN_FLIGHT;
 
         unsafe {
             // Wait for the previous frame to finish
             self.device.wait_for_fences(&[self.in_flight_fences[current_frame]], true, u64::MAX)?;
-
-            // Acquire the next image from the swapchain
-            let (image_index, _) = match self.swapchain_loader.acquire_next_image(
-                self.swapchain,
-                u64::MAX,
-                self.image_available_semaphores[current_frame],
-                vk::Fence::null(),
-            ) {
-                Ok(result) => result,
-                Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                    // Window resized, we should recreate the swapchain
-                    return Ok(());
-                }
-                Err(error) => return Err(error.into()),
-            };
-
-            let image_index = image_index as usize;
 
             // Check if a previous frame is using this image (i.e. there is its fence to wait on)
             if self.images_in_flight[image_index] != vk::Fence::null() {
