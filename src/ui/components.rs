@@ -191,6 +191,7 @@ pub enum UiElement {
         position: [f32; 2],
         size: [f32; 2],
         color: [f32; 4],
+        #[allow(dead_code)]
         border_radius: f32,
         border_width: f32,
         border_color: [f32; 4],
@@ -201,6 +202,7 @@ pub enum UiElement {
         color: [f32; 4],
         scale: f32,
     },
+    #[allow(dead_code)]
     Image {
         position: [f32; 2],
         size: [f32; 2],
@@ -1019,16 +1021,20 @@ impl UiRenderer {
                 if let Some(char_data) = font_atlas.get_char(c) {
                     // Skip space with just advancing cursor
                     if c == ' ' {
-                        cursor_x += char_data.advance * scale;
+                        cursor_x += char_data.advance_width * scale;
                         continue;
                     }
 
+                    // For now, use fixed glyph size and offset
+                    let glyph_offset = [char_data.bearing_x, char_data.bearing_y];
+                    let glyph_size = [12.0, 16.0]; // Default glyph size
+
                     // Create glyph transform
                     let glyph_pos = [
-                        cursor_x + char_data.offset[0] * scale,
-                        cursor_y + char_data.offset[1] * scale,
+                        cursor_x + glyph_offset[0] * scale,
+                        cursor_y + glyph_offset[1] * scale,
                     ];
-                    let glyph_size = [char_data.size[0] * scale, char_data.size[1] * scale];
+                    let glyph_size = [glyph_size[0] * scale, glyph_size[1] * scale];
 
                     // Create translation matrix
                     let translation =
@@ -1070,7 +1076,7 @@ impl UiRenderer {
                     }
 
                     // Advance cursor for next glyph
-                    cursor_x += char_data.advance * scale;
+                    cursor_x += char_data.advance_width * scale;
                 }
             }
         }

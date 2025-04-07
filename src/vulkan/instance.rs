@@ -39,7 +39,7 @@ pub fn create_instance(entry: &Entry, window: &Window) -> Result<Instance> {
     let (layer_names, layer_names_raw) = debug::setup_validation_layers(entry)?;
 
     #[cfg(debug_assertions)]
-    let mut debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+    let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
         s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         p_next: std::ptr::null(),
         flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),

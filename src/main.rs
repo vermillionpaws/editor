@@ -8,7 +8,7 @@ use std::sync::Arc;
 use vulkan::VulkanApp;
 use winit::{
     application::ApplicationHandler,
-    event::{ElementState, KeyEvent, WindowEvent, Modifiers},
+    event::{ElementState, KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey, ModifiersState},
     window::{WindowId, WindowAttributes},
@@ -541,6 +541,10 @@ impl ApplicationHandler for AppState {
             .ui_renderer
             .get_current_semaphore()
             .expect("No semaphore available");
+
+        // Log frame index in trace level for debugging purposes
+        trace!("Rendering frame {}", frame_index);
+
         // Get the next swapchain image index using the current frame's semaphore
         let next_image_index = match unsafe {
             self.vulkan_app.swapchain_loader.acquire_next_image(
@@ -589,8 +593,7 @@ fn main() -> Result<()> {
     let window_attr = WindowAttributes::default()
         .with_title("Vulkan Editor")
         .with_inner_size(winit::dpi::LogicalSize::new(800, 600));
-    // Create window directly - we'll accept the deprecation warning
-    // since we can't find the correct non-deprecated API in this winit version
+    // Create window using the active event loop
     let window = Arc::new(event_loop.create_window(window_attr)?);
     // Create Vulkan application
     let vulkan_app = VulkanApp::new(&window)?;

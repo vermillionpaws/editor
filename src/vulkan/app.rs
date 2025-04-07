@@ -220,9 +220,6 @@ impl VulkanApp {
             }
         }
 
-        // Get window size for new swapchain
-        let window_size = window.inner_size();
-
         // Create new swapchain
         let (swapchain_loader, swapchain, swapchain_images, swapchain_format, swapchain_extent) =
             swapchain::create_swapchain(

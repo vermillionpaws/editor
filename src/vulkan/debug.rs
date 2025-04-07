@@ -39,7 +39,7 @@ pub fn setup_validation_layers(entry: &Entry) -> Result<(Vec<CString>, Vec<*cons
 pub unsafe fn create_debug_messenger(
     entry: &Entry,
     instance: &Instance,
-) -> Result<(vk::DebugUtilsMessengerEXT, ash::ext::debug_utils::Instance)> {
+) -> Result<(vk::DebugUtilsMessengerEXT, ash::ext::debug_utils::Instance)> { unsafe {
     let debug_utils_loader = ext::debug_utils::Instance::new(entry, instance);
 
     let messenger_ci = vk::DebugUtilsMessengerCreateInfoEXT {
@@ -62,7 +62,7 @@ pub unsafe fn create_debug_messenger(
 
     let debug_messenger = debug_utils_loader.create_debug_utils_messenger(&messenger_ci, None)?;
     Ok((debug_messenger, debug_utils_loader))
-}
+}}
 
 #[cfg(debug_assertions)]
 pub extern "system" fn vulkan_debug_callback(

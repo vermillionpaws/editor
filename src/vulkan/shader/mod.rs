@@ -18,11 +18,13 @@ lazy_static! {
     static ref SHADER_MODULE_CACHE: Mutex<HashMap<String, vk::ShaderModule>> = Mutex::new(HashMap::new());
 }
 
+#[allow(dead_code)]
 pub fn init_shader_cache() {
     // No initialization needed with lazy_static
     trace!("Shader cache initialized");
 }
 
+#[allow(dead_code)]
 pub fn cleanup_shader_modules(device: &Device) {
     if let Ok(mut cache) = SHADER_MODULE_CACHE.lock() {
         for (path, module) in cache.drain() {
@@ -35,6 +37,7 @@ pub fn cleanup_shader_modules(device: &Device) {
 }
 
 // Compile GLSL shader to SPIR-V and create a shader module
+#[allow(dead_code)]
 pub fn create_shader_module(
     device: &Device,
     shader_path: &str,
@@ -78,11 +81,13 @@ pub fn create_shader_module(
 }
 
 // Helper to create shader entry point CString
+#[allow(dead_code)]
 pub fn create_entry_point(name: &str) -> CString {
     CString::new(name).unwrap()
 }
 
 // Determine if shader needs recompilation and compile if needed
+#[allow(dead_code)]
 fn compile_shader_if_needed(
     shader_path: &str,
     shader_type: ShaderType
@@ -115,6 +120,7 @@ fn compile_shader_if_needed(
 }
 
 // Compile shader using glslangValidator or similar tool
+#[allow(dead_code)]
 fn compile_shader(
     shader_path: &str,
     output_path: &str,
@@ -142,6 +148,7 @@ fn compile_shader(
 }
 
 // Shader types
+#[allow(dead_code)]
 pub enum ShaderType {
     Vertex,
     Fragment,
@@ -149,6 +156,7 @@ pub enum ShaderType {
 }
 
 // Create common descriptors for UI rendering
+#[allow(dead_code)]
 pub fn create_descriptor_set_layout(
     device: &Device,
 ) -> Result<vk::DescriptorSetLayout> {
@@ -182,6 +190,7 @@ pub fn create_descriptor_set_layout(
 }
 
 // Create descriptor pool for UI rendering
+#[allow(dead_code)]
 pub fn create_descriptor_pool(
     device: &Device,
     max_sets: u32,
@@ -212,6 +221,7 @@ pub fn create_descriptor_pool(
 }
 
 // Allocate descriptor sets for UI rendering
+#[allow(dead_code)]
 pub fn allocate_descriptor_sets(
     device: &Device,
     pool: vk::DescriptorPool,
@@ -238,6 +248,7 @@ pub fn allocate_descriptor_sets(
 }
 
 // Update descriptor set with font texture
+#[allow(dead_code)]
 pub fn update_font_descriptor_set(
     device: &Device,
     descriptor_set: vk::DescriptorSet,

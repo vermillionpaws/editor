@@ -5,7 +5,7 @@ pub mod keybinds;
 pub mod state;
 pub mod theme;
 
-pub use components::{Component, TextEditor, StatusBar, LineNumbers, CommandLine, UiRenderer};
+pub use components::{TextEditor, StatusBar, LineNumbers, CommandLine, UiRenderer};
 pub use font::Font;
 pub use state::UiState;
 pub use theme::Theme;

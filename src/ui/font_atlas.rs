@@ -9,27 +9,30 @@ use crate::vulkan::VulkanApp;
 use super::font::Font;
 
 // Character data for texture atlas
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Clone)]
 pub struct CharData {
-    pub size: [f32; 2],      // Width and height of the character
-    pub offset: [f32; 2],    // Offset from baseline
-    pub uv_rect: [f32; 4],   // Texture coordinates [u0, v0, u1, v1]
-    pub advance: f32,        // How much to advance cursor after this character
+    pub glyph_id: u16,
+    pub advance_width: f32,
+    pub bearing_x: f32,
+    pub bearing_y: f32,
+    #[allow(dead_code)]
+    pub uv_rect: [f32; 4],   // [u0, v0, u1, v1]
 }
 
+#[derive(Debug, Clone)]
 pub struct FontAtlas {
-    // Font texture
-    pub texture: vk::Image,
+    pub texture_id: vk::Image,
     pub texture_memory: vk::DeviceMemory,
     pub texture_view: vk::ImageView,
     pub texture_sampler: vk::Sampler,
-
-    // Atlas dimensions
-    width: u32,
-    height: u32,
-
-    // Character data mapping
-    char_data: HashMap<char, CharData>,
+    pub char_data: HashMap<char, CharData>,
+    pub texture_data: Vec<u8>,
+    #[allow(dead_code)]
+    pub width: u32,
+    #[allow(dead_code)]
+    pub height: u32,
+    pub line_height: f32,
+    pub scale: f32,
 }
 
 impl FontAtlas {
@@ -165,10 +168,11 @@ impl FontAtlas {
 
                 // Add character data to the map
                 char_data.insert(c, CharData {
-                    size: [bounds.width(), bounds.height()],
-                    offset: [bounds.min.x, bounds.min.y],
+                    glyph_id: ab_font.glyph_id(c).0,
+                    advance_width: advance,
+                    bearing_x: bounds.min.x,
+                    bearing_y: bounds.min.y,
                     uv_rect: [u0, v0, u1, v1],
-                    advance,
                 });
 
                 // Render glyph to the atlas
@@ -200,13 +204,16 @@ impl FontAtlas {
         upload_texture_data(app, texture, width, height, &atlas_data)?;
 
         Ok(Self {
-            texture,
+            texture_id: texture,
             texture_memory,
             texture_view,
             texture_sampler,
+            char_data,
+            texture_data: atlas_data,
             width,
             height,
-            char_data,
+            line_height: max_height,
+            scale: font_size.x,
         })
     }
 
@@ -220,7 +227,7 @@ impl FontAtlas {
         unsafe {
             app.device.destroy_sampler(self.texture_sampler, None);
             app.device.destroy_image_view(self.texture_view, None);
-            app.device.destroy_image(self.texture, None);
+            app.device.destroy_image(self.texture_id, None);
             app.device.free_memory(self.texture_memory, None);
         }
     }

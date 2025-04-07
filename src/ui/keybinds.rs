@@ -1,64 +1,69 @@
 use std::collections::HashMap;
 use super::state::EditorMode;
 
-pub struct Keybinds {
-    pub bindings: HashMap<&'static str, &'static str>,
-    pub mode_transitions: HashMap<&'static str, EditorMode>,
+#[derive(Debug, Clone)]
+pub struct KeyBindings {
+    #[allow(dead_code)]
+    pub bindings: HashMap<String, Action>,
+    #[allow(dead_code)]
+    pub mode_transitions: HashMap<String, EditorMode>,
 }
 
-impl Keybinds {
-    pub fn vim_style() -> Self {
+#[derive(Debug, Clone)]
+pub enum Action {
+    MoveCursorUp,
+    MoveCursorDown,
+    MoveCursorLeft,
+    MoveCursorRight,
+
+    DeleteChar,
+    DeleteLine,
+
+    Undo,
+    Redo,
+
+    Copy,
+    Cut,
+    Paste,
+
+    Save,
+    SaveAs,
+    Open,
+    Quit,
+
+    FindNext,
+    FindPrevious,
+    Replace,
+
+    ToggleLineNumbers,
+    ToggleStatusBar,
+    ToggleTheme,
+}
+
+impl Default for KeyBindings {
+    fn default() -> Self {
         let mut bindings = HashMap::new();
-        // Normal mode movement
-        bindings.insert("h", "move_left");
-        bindings.insert("j", "move_down");
-        bindings.insert("k", "move_up");
-        bindings.insert("l", "move_right");
-        bindings.insert("0", "move_line_start");
-        bindings.insert("$", "move_line_end");
-        bindings.insert("gg", "move_document_start");
-        bindings.insert("G", "move_document_end");
-        bindings.insert("w", "move_word_forward");
-        bindings.insert("b", "move_word_backward");
+        let mut mode_transitions = HashMap::new();
 
-        // Editing
-        bindings.insert("dd", "delete_line");
-        bindings.insert("yy", "yank_line");
-        bindings.insert("p", "paste_after");
-        bindings.insert("P", "paste_before");
-        bindings.insert("u", "undo");
-        bindings.insert("ctrl+r", "redo");
-        bindings.insert("x", "delete_char");
-        bindings.insert("r", "replace_char");
-        bindings.insert(">>", "indent");
-        bindings.insert("<<", "unindent");
+        // Normal mode key bindings
+        bindings.insert("k".to_string(), Action::MoveCursorUp);
+        bindings.insert("j".to_string(), Action::MoveCursorDown);
+        bindings.insert("h".to_string(), Action::MoveCursorLeft);
+        bindings.insert("l".to_string(), Action::MoveCursorRight);
 
-        // File operations
-        bindings.insert(":w", "save");
-        bindings.insert(":q", "quit");
-        bindings.insert(":wq", "save_and_quit");
-        bindings.insert(":q!", "force_quit");
+        bindings.insert("dd".to_string(), Action::DeleteLine);
 
-        // Search
-        bindings.insert("/", "search_forward");
-        bindings.insert("?", "search_backward");
-        bindings.insert("n", "search_next");
-        bindings.insert("N", "search_previous");
+        bindings.insert("y".to_string(), Action::Copy);
+        bindings.insert("p".to_string(), Action::Paste);
 
-        // Visual mode
-        bindings.insert("v", "enter_visual");
-        bindings.insert("V", "enter_visual_line");
+        bindings.insert("\\n".to_string(), Action::ToggleLineNumbers);
+        bindings.insert("\\s".to_string(), Action::ToggleStatusBar);
+        bindings.insert("\\t".to_string(), Action::ToggleTheme);
 
         // Mode transitions
-        let mut mode_transitions = HashMap::new();
-        mode_transitions.insert("i", EditorMode::Insert);
-        mode_transitions.insert("a", EditorMode::Insert);
-        mode_transitions.insert("o", EditorMode::Insert);
-        mode_transitions.insert("O", EditorMode::Insert);
-        mode_transitions.insert("v", EditorMode::Visual);
-        mode_transitions.insert("V", EditorMode::Visual);
-        mode_transitions.insert(":", EditorMode::Command);
-        mode_transitions.insert("Escape", EditorMode::Normal);
+        mode_transitions.insert("i".to_string(), EditorMode::Insert);
+        mode_transitions.insert("v".to_string(), EditorMode::Visual);
+        mode_transitions.insert(":".to_string(), EditorMode::Command);
 
         Self {
             bindings,
@@ -66,11 +71,13 @@ impl Keybinds {
         }
     }
 
-    pub fn get_action(&self, key: &str) -> Option<&'static str> {
-        self.bindings.get(key).copied()
+    #[allow(dead_code)]
+    pub fn get_action(&self, key: &str) -> Option<&Action> {
+        self.bindings.get(key)
     }
 
-    pub fn get_mode_transition(&self, key: &str) -> Option<EditorMode> {
-        self.mode_transitions.get(key).cloned()
+    #[allow(dead_code)]
+    pub fn get_mode_transition(&self, key: &str) -> Option<&EditorMode> {
+        self.mode_transitions.get(key)
     }
 }
