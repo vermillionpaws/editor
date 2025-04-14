@@ -18,6 +18,6 @@ memoffset = "0.9.1"       # Calculating offsets in structs
 image = "0.25.6"         # Image processing for font atlas
 rusttype = "0.9.3"       # Font handling and rendering
 ab_glyph = "0.2.29"      # Alternative font rendering
-glam = "0.30.1"          # Math library for graphics
+glam = "0.30.2"          # Math library for graphics
 shaderc = "0.9.1"        # Shader compilation
 lazy_static = "1.5.0"    # For static variables
